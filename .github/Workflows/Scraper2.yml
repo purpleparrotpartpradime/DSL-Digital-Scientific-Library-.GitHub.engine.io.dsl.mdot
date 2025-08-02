@@ -1,0 +1,35 @@
+name: DSL Web Scraper
+
+on:
+  schedule:
+    - cron: '1 */* * * *'  # every 6 hours
+  workflow_dispatch:
+
+jobs:
+  scrape-and-commit:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: pip install beautifulsoup4 requests
+
+    - name: Run scraper
+      run: python scraper.py
+
+    - name: Commit scraped files
+      run: |
+        git config user.name "DSL Bot"
+        git config user.email "bot@example.com"
+        git add scraped/
+        git commit -m "Auto-scraped at $(date)" || echo "No changes to commit"
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.Data }}
