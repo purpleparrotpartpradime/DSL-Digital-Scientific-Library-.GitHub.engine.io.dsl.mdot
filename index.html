@@ -11,23 +11,31 @@
       padding: 2em;
     }
     h1 { color: #66fcf1; }
-    pre {
+    .bookshelf {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1em;
+      margin-top: 1em;
+    }
+    .book {
       background: #1f2833;
       padding: 1em;
       border-radius: 5px;
-      overflow-x: auto;
-      max-height: 400px;
-    }
-    a { color: #45a29e; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .file { margin-left: 1em; }
-    button {
-      background-color: #45a29e;
-      color: #0b0c10;
-      border: none;
-      padding: 0.5em 1em;
-      margin-top: 0.5em;
       cursor: pointer;
+      width: 120px;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    .book:hover {
+      transform: scale(1.05);
+      background-color: #2b3b4f;
+    }
+    #reader {
+      margin-top: 2em;
+      background: #1f2833;
+      padding: 1em;
+      border-radius: 5px;
+      display: none;
     }
     textarea {
       width: 100%;
@@ -39,18 +47,37 @@
       padding: 0.5em;
       font-family: monospace;
     }
+    button {
+      background-color: #45a29e;
+      color: #0b0c10;
+      border: none;
+      padding: 0.5em 1em;
+      margin-top: 0.5em;
+      cursor: pointer;
+    }
+    a {
+      color: #45a29e;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
-  <h1>📚 Digital Scientific Library</h1>
+  <h1>Digital Scientific Library</h1>
 
   <section>
     <h2>Browse Repository</h2>
-    <div id="fileViewer">Loading files...</div>
+    <div id="fileViewer">Loading...</div>
+    <div id="reader">
+      <h3>Reader</h3>
+      <pre id="fileContent">Click a book to read...</pre>
+    </div>
   </section>
 
   <section style="margin-top: 2em;">
-    <h2>🔍 Add Scraping Keywords</h2>
+    <h2>Add Scraping Keywords</h2>
     <p>Enter scientific keywords to auto-scrape new content via GitHub Action:</p>
     <textarea id="keywords" placeholder="e.g. fusion, dark matter, CRISPR..."></textarea><br>
     <button onclick="saveKeywords()">Save Keywords</button>
@@ -66,31 +93,59 @@
     };
 
     async function loadFiles(path = "") {
+      const viewer = document.getElementById("fileViewer");
+      viewer.innerHTML = "";
+
       try {
         const res = await fetch(API_BASE + path, { headers });
-        const files = await res.json();
-        const viewer = document.getElementById("fileViewer");
-        if (path === "") viewer.innerHTML = "";
-        const ul = document.createElement("ul");
-        for (const file of files) {
-          const li = document.createElement("li");
-          if (file.type === "dir") {
-            li.innerHTML = `<strong> ${file.name}</strong>`;
-            li.onclick = () => loadFiles(file.path);
-          } else {
-            li.innerHTML = `<a href="${file.download_url}" target="_blank">${file.name}</a>`;
+        const items = await res.json();
+
+        const shelf = document.createElement("div");
+        shelf.className = "bookshelf";
+
+        if (Array.isArray(items)) {
+          for (const item of items) {
+            const el = document.createElement("div");
+            el.className = "book";
+
+            if (item.type === "dir") {
+              el.innerText = item.name;
+              el.onclick = () => loadFiles(item.path);
+            } else {
+              el.innerText = item.name;
+              el.onclick = () => openFile(item.download_url);
+            }
+
+            shelf.appendChild(el);
           }
-          ul.appendChild(li);
+
+          if (path !== "") {
+            const back = document.createElement("div");
+            back.className = "book";
+            back.style.background = "#333";
+            back.innerText = "← Back";
+            back.onclick = () => loadFiles(path.split("/").slice(0, -1).join("/"));
+            shelf.prepend(back);
+          }
+
+          viewer.appendChild(shelf);
+        } else {
+          viewer.innerText = "No files found.";
         }
-        if (path !== "") {
-          const back = document.createElement("li");
-          back.innerHTML = `<a href="#">Back</a>`;
-          back.onclick = () => loadFiles(path.split("/").slice(0, -1).join("/"));
-          ul.prepend(back);
-        }
-        viewer.appendChild(ul);
-      } catch (e) {
-        console.error("Error loading files:", e);
+      } catch (err) {
+        viewer.innerText = "Error loading files.";
+        console.error(err);
+      }
+    }
+
+    async function openFile(url) {
+      try {
+        const res = await fetch(url);
+        const text = await res.text();
+        document.getElementById("reader").style.display = "block";
+        document.getElementById("fileContent").textContent = text;
+      } catch (err) {
+        alert("Failed to load file.");
       }
     }
 
@@ -118,8 +173,7 @@
         });
 
         if (res.ok) {
-          console.log(" Keywords updated.");
-          alert(" Keywords saved!");
+          alert("Keywords saved!");
         } else {
           console.error("Failed to save:", await res.text());
         }
