@@ -1,4 +1,4 @@
-name: 🔍 Web Keyword Scraper
+name: Web Keyword Scraper
 
 on:
   schedule:
@@ -15,17 +15,26 @@ jobs:
       GH_TOKEN: ${{ secrets.Data }}
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-    - name: Setup Node
-      uses: actions/setup-node@v3
-      with:
-        node-version: 20
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
 
-    - name: Install dependencies
-      run: npm install node-fetch
+      - name: Install dependencies
+        run: npm install node-fetch
 
-    - name: Scrape keywords from web
-      run: |
-        node scrape.js
+      - name: Scrape keywords from web
+        run: |
+          node scrape.js
+
+      - name: Commit and Push results
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+          git add results/scrape_output.md
+          git commit -m " Update scraped data"
+          git push
+
