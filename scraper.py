@@ -1,26 +1,38 @@
-# scraper.py
-import requests, os
+import os
+import requests
 from bs4 import BeautifulSoup
 
-keywords = ['physics', 'biology', 'climate', 'ecology']
-base_folder = "scraped"
+keywords_path = 'config/keywords.txt'
+output_dir = '.'  # root of the repo
 
-os.makedirs(base_folder, exist_ok=True)
+def safe_filename(name):
+    return "".join(c if c.isalnum() or c in "-_ " else "_" for c in name)
 
-for word in keywords:
-    print(f"Scraping: {word}")
-    try:
-        url = f"https://en.wikipedia.org/wiki/{word.capitalize()}"
-        r = requests.get(url)
-        if r.status_code == 200:
-            soup = BeautifulSoup(r.text, "html.parser")
-            paragraphs = soup.select("p")
-            text = "\n".join(p.get_text() for p in paragraphs[:5])
+def search_and_save(keyword):
+    folder = os.path.join(output_dir, safe_filename(keyword))
+    os.makedirs(folder, exist_ok=True)
 
-            folder = os.path.join(base_folder, word)
-            os.makedirs(folder, exist_ok=True)
+    url = f"https://www.google.com/search?q={keyword.replace(' ', '+')}"
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    res = requests.get(url, headers=headers)
+    soup = BeautifulSoup(res.text, 'html.parser')
+    results = soup.find_all('h3')
 
-            with open(os.path.join(folder, "summary.txt"), "w", encoding="utf-8") as f:
-                f.write(text)
-    except Exception as e:
-        print(f"Failed to scrape {word}: {e}")
+    with open(os.path.join(folder, 'summary.txt'), 'w', encoding='utf-8') as f:
+        f.write(f"Results for: {keyword}\n\n")
+        for h3 in results:
+            text = h3.get_text(strip=True)
+            if text:
+                f.write(f"- {text}\n")
+
+def main():
+    if not os.path.exists(keywords_path):
+        print("No keywords.txt found.")
+        return
+    with open(keywords_path, 'r') as f:
+        keywords = [line.strip() for line in f if line.strip()]
+    for kw in keywords:
+        search_and_save(kw)
+
+if __name__ == "__main__":
+    main()
